@@ -110,11 +110,11 @@
 
  function setPage()
  {
-  var txtFile = createCORSRequest("GET", "http://www.imf.org/external/pubs/ft/weo/2014/02/weodata/weoreptc.aspx?sy=1980&ey=2019&ssc=1&sort=country&ds=.&br=1&pr1.x=31&pr1.y=4&c=174&s=NGDP_R%2CNGDP%2CNGAP_NPGDP%2CGGR%2CGGX%2CGGSB%2CGGSB_NPGDP%2CNID_NGDP&grp=0&a=");
+  var txtFile = createCORSRequest("GET", "https://www.imf.org/external/pubs/ft/weo/2014/02/weodata/weoreptc.aspx?sy=1980&ey=2019&ssc=1&sort=country&ds=.&br=1&pr1.x=31&pr1.y=4&c=174&s=NGDP_R%2CNGDP%2CNGAP_NPGDP%2CGGR%2CGGX%2CGGSB%2CGGSB_NPGDP%2CNID_NGDP&grp=0&a=");
   if (txtFile)
   {
    txtFile.setRequestHeader('Access-Control-Allow-Headers','*');
-   txtFile.setRequestHeader('Access-Control-Allow-Origin','http://www.imf.org');
+   txtFile.setRequestHeader('Access-Control-Allow-Origin','https://www.imf.org');
    txtFile.onload = reqListener;
    txtFile.send();
   }
