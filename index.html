@@ -1,192 +1,113 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html;charset=utf-8"></meta>
-<title>Fiscal Options</title>
-<script type="text/javascript">
+<HTML>
+<HEAD>
+<SCRIPT type="text/javascript" src="https://www.google.com/jsapi"></SCRIPT>
+<SCRIPT type="text/javascript">
+ google.load('visualization', '1', {packages:['table']});
+ google.load('visualization', '1', {packages:['corechart']});
+ google.setOnLoadCallback(doNew);
 
- //<![CDATA[
+ var Year;
+ var NGDP_R;
+ var NGDP;
+ var NGAP_NPGDP;
+ var GGR;
+ var GGX;
+ var GGSB;
+ var GGSB_NPGDP;
+ var NID_NGDP;
 
-var dbids = [];
-var dbnames = [];
-var codenames = [];
+ var NPGDP = [];
+ var NPGDP_R = [];
+ var PGDP = [];
 
-function readTextFile(file, type, callback) {
-   var rawFile = new XMLHttpRequest();
-   if (type!='') {
-      rawFile.overrideMimeType(type);
+ var data;
+ var table;
+
+ function reqListener()
+ {
+
+  var lnnpgdp_r = [];
+  var lnnpgdp_tr = [];
+
+  // Dump data into arrays
+  var allTextLines = this.responseText.split(/\r\n|\n/);
+  Year = allTextLines[0].split(/\t/).slice(4,-1);
+  for (var i=1; i<allTextLines.length-2; i++)
+  {
+   var tmp = allTextLines[i].replace(/,/g,"").replace(/n\/a/g,"").split(/\t/);
+   eval(tmp[0]+'=tmp.slice(4,-1);')
+  }
+
+  for (var i=0; i<Year.length; i++)
+  {
+   if(NGAP_NPGDP[i]=='')
+   {
+    NPGDP[i] = 100*parseFloat(GGSB[i])/parseFloat(GGSB_NPGDP[i]);
    }
-   rawFile.open("GET", file, false);
-   rawFile.onreadystatechange = function() {
-      if (rawFile.readyState === XMLHttpRequest.DONE) {
-         if (1 || rawFile.status === 200) {
-            callback(rawFile.responseText);
-         }
-      }
+   else
+   {
+    NPGDP[i] = 100.0*parseFloat(NGDP[i])/(100.0+parseFloat(NGAP_NPGDP[i]));
    }
-   rawFile.send(null);
-}
+   PGDP[i] = 100*parseFloat(NGDP[i])/parseFloat(NGDP_R[i]);
+   NPGDP_R[i] = 100*NPGDP[i]/PGDP[i];
+   lnnpgdp_r[i] = Math.log(NPGDP_R[i]);
+  }
+  var b = (lnnpgdp_r[2005-Year[0]]-lnnpgdp_r[1994-Year[0]])/11;
+  var lnnpgdp_tr = lnnpgdp_r.slice(0);
+  var lnnpgdp_base = lnnpgdp_r.slice(0);
+  for (var j=(2005-Year[0]); j<Year.length; j++)
+  {
+   lnnpgdp_tr[j] = lnnpgdp_tr[j-1]+b;
+   lnnpgdp_base[j] = (lnnpgdp_r[j]+lnnpgdp_tr[j])/2;
+  }
+  var lnnpgdp_alt = lnnpgdp_base.slice(0);
+  for (var j=(2006-Year[0]); j<Year.length; j++)
+  {
+   lnnpgdp_alt[j] = lnnpgdp_alt[j-1]+lnnpgdp_base[j]-lnnpgdp_base[j-1]-Math.log(1+(25-parseFloat(NID_NGDP[j]))/300)/3;
+  }
 
-function getDataFlow(id) {
-   var file = "http://dataservices.imf.org/REST/SDMX_JSON.svc/Dataflow";
-   readTextFile(file, '', function(text) {
-      var family = JSON.parse(text).Structure.KeyFamilies.KeyFamily;
-      var json = JSON.stringify(family, null, '\t');
-      JSON.parse(json, function(k,v) {
-         if (k=="@id") {
-            dbids.push(v);
-         }
-         if (k=="Description") {
-            dbnames.pop();
-         }
-         if (k=="#text") {
-            dbnames.push(v);
-         }
-      });
-      var inner = '';
-      for(var i=0;i<dbids.length;i++) {
-         inner = inner+'<br/><br/>'+dbids[i]+': '+dbnames[i]+'<PRE id="'+dbids[i]+'"></PRE>';
-      }
-      if (id=='') {
-         document.body.innerHTML = inner;
-      }
-      else {
-         document.getElementById(id).innerHTML = inner;
-      }
-   });
-}
+  for (var i=0; i<Year.length; i++)
+  {
+   NPGDP_R[i] = Math.exp(lnnpgdp_alt[i]);
+   NPGDP[i] = NPGDP_R[i]*PGDP[i]/100;
+  }
 
-function getDataStructure(id,database) {
-   var conceptRef = '';
-   var file = 'http://dataservices.imf.org/REST/SDMX_JSON.svc/DataStructure/'+database;
-   readTextFile(file, '', function(text) {
-      var codes = JSON.parse(text).Structure.KeyFamilies.KeyFamily.Components.Dimension;
-      var json = JSON.stringify(codes, null, '\t');
-/*
-      JSON.parse(json, function(k,v) {
-         if (k=="@conceptRef") {
-            conceptRef = v;
-         }
-         if (k=="@codelist") {
-            if (conceptRef=='SCALE') {
-               codenames.push(v);
-               document.getElementById(id).innerHTML = v;
-            }
-         }
-      });
-*/
-      document.getElementById(id).innerHTML = json;
-   });
-}
+  var nd = 25;
 
-function getCodeList(id,code) {
-   var file = 'http://dataservices.imf.org/REST/SDMX_JSON.svc/CodeList/'+code;
-   readTextFile(file, '', function(text) {
-      var codes = JSON.parse(text).Structure.CodeLists.CodeList.Code;
-      if (id!='') {
-         document.getElementById(id).innerHTML = JSON.stringify(codes, null, '\t');
-      }
-   });
-}
+  data.addColumn('number','Year');
+  data.addColumn('number','NPGDP');
+  data.addColumn('number','NGDP');
+  data.addRows(Year.length-nd);
 
-function getCompactData(id,database,dims,start,end) {
-   var file = 'http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/'+database+'/'+dims+'?startPeriod='+start+'&endPeriod='+end;
-   readTextFile(file, '', function(text) {
-      var data = JSON.parse(text).CompactData.DataSet.Series;
-      var json = JSON.stringify(data, null, '\t');
-      if (id!='') {
-         document.getElementById(id).innerHTML = json
-      }
-      buildDataSet(json);
-   });
-}
+  for (var j=nd; j<Year.length; j++)
+  {
+   data.setCell(j-nd,0,Year[j]);
+   data.setCell(j-nd,1,NPGDP[j]);
+   data.setCell(j-nd,2,NGDP[j]);
+  }
 
-function buildDataSet(json) {
-   var nitems = -1;
-   var datanames = [];
-   var data
-   JSON.parse(json, function(k,v) {
-      if (k=="@INDICATOR") {
-         nitems++;
-         datanames[nitems] = v;
-      }
-      if (k=="Obs") {
-      }
-   });
-   alert(datanames);
-}
+  table = new google.visualization.LineChart(document.getElementById('table_div'));
+  table.draw(data, {hAxis: {format: '####'}});
 
+ }
 
-function loadFunction() {
+ function setPage()
+ {
+  var txtFile = new XMLHttpRequest();
+  txtFile.onload = reqListener;
+  txtFile.open("GET", "file:///Users/davidrosnick/Downloads/weoreptc-8.aspx", true);
+  txtFile.send();
+ }
 
-   getDataFlow('');
-   var database = 'DOT';
-   getDataStructure('DOT','DOT');
-//   getCodeList('DOT','CL_UNIT_MULT');
+ function doNew()
+ {
+  data = new google.visualization.DataTable();
+  setPage();
+ }
 
-/*
-   var imin = 20;
-   var ilen = 10;
-
-   for(var i=imin;i<imin+ilen;i++) {
-      getDataStructure(dbids[i],dbids[i]);
-   }
-   for (var i=0; i<ilen; i++) {
-      getCodeList(dbids[imin+i],codenames[i]);
-   }
-   alert("done");
-*/
-//	FM
-
-/*
-   for(var i=0;i<1;i++) {
-      getDataStructure(dbids[i],dbids[i]);
-   }
-   var codes = ['CL_AREA_WHDREO','CL_INDICATOR_WHDREO','CL_FREQ','CL_UNIT_MULT'];
-   for(var i=0;i<codes.length;i++) {
-      id = (codes[i]=='CL_INDICATOR_WHDREO') ? '' : '';
-      getCodeList(id,codes[i]);
-   }
-   var CL_AREA_WHDREO = 'US';
-   var CL_INDICATOR_WHDREO = '';
-   var CL_FREQ = '';
-   var CL_UNIT_MULT = '';
-
-   var dims = eval(codes[0]);
-   for(var i=1;i<codes.length;i++) {
-      dims = dims.concat('.').concat(eval(codes[i]));
-   }
-   getCompactData('codelist',database,dims,2000,2015);
-
-   readTextFile(file, type, function(text) {
-      var dlist = [];
-//      var data = JSON.parse(text, function(k,v) {if (k=="@id") dlist.push(v);});
-      var data = JSON.parse(text);
-      document.body.innerHTML = text;
-   });
-*/
-
-}
-
-function parseJSON(data) {
-   var series = data.structure.dimensions.series[0].values;
-   var dataSeries = data.dataSets[0].series;
-   for (i=0;i<series.length;i++) {
-      eval('var '+series[i].id+' = [];');
-      var observations = dataSeries[i].observations;
-      for (j=0;j<Object.keys(observations).length;j++) {
-         eval(series[i].id+'['+j+'] = '+observations[j][0]);
-      }
-   }
-   document.body.innerHTML = NZD+'...'+RUB;
-}
-
- //]]>
-
-</script>
-</head>
-<body onload="loadFunction();">
-<PRE id="codelist"></PRE>
-</body>
-</html>
+</SCRIPT>
+</HEAD>
+<BODY>
+</BODY>
+<DIV id='table_div' style="width: 650px; height: 500px;"></DIV>
+</HTML>
