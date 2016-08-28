@@ -1,0 +1,192 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"></meta>
+<title>Fiscal Options</title>
+<script type="text/javascript">
+
+ //<![CDATA[
+
+var dbids = [];
+var dbnames = [];
+var codenames = [];
+
+function readTextFile(file, type, callback) {
+   var rawFile = new XMLHttpRequest();
+   if (type!='') {
+      rawFile.overrideMimeType(type);
+   }
+   rawFile.open("GET", file, false);
+   rawFile.onreadystatechange = function() {
+      if (rawFile.readyState === XMLHttpRequest.DONE) {
+         if (1 || rawFile.status === 200) {
+            callback(rawFile.responseText);
+         }
+      }
+   }
+   rawFile.send(null);
+}
+
+function getDataFlow(id) {
+   var file = "http://dataservices.imf.org/REST/SDMX_JSON.svc/Dataflow";
+   readTextFile(file, '', function(text) {
+      var family = JSON.parse(text).Structure.KeyFamilies.KeyFamily;
+      var json = JSON.stringify(family, null, '\t');
+      JSON.parse(json, function(k,v) {
+         if (k=="@id") {
+            dbids.push(v);
+         }
+         if (k=="Description") {
+            dbnames.pop();
+         }
+         if (k=="#text") {
+            dbnames.push(v);
+         }
+      });
+      var inner = '';
+      for(var i=0;i<dbids.length;i++) {
+         inner = inner+'<br/><br/>'+dbids[i]+': '+dbnames[i]+'<PRE id="'+dbids[i]+'"></PRE>';
+      }
+      if (id=='') {
+         document.body.innerHTML = inner;
+      }
+      else {
+         document.getElementById(id).innerHTML = inner;
+      }
+   });
+}
+
+function getDataStructure(id,database) {
+   var conceptRef = '';
+   var file = 'http://dataservices.imf.org/REST/SDMX_JSON.svc/DataStructure/'+database;
+   readTextFile(file, '', function(text) {
+      var codes = JSON.parse(text).Structure.KeyFamilies.KeyFamily.Components.Dimension;
+      var json = JSON.stringify(codes, null, '\t');
+/*
+      JSON.parse(json, function(k,v) {
+         if (k=="@conceptRef") {
+            conceptRef = v;
+         }
+         if (k=="@codelist") {
+            if (conceptRef=='SCALE') {
+               codenames.push(v);
+               document.getElementById(id).innerHTML = v;
+            }
+         }
+      });
+*/
+      document.getElementById(id).innerHTML = json;
+   });
+}
+
+function getCodeList(id,code) {
+   var file = 'http://dataservices.imf.org/REST/SDMX_JSON.svc/CodeList/'+code;
+   readTextFile(file, '', function(text) {
+      var codes = JSON.parse(text).Structure.CodeLists.CodeList.Code;
+      if (id!='') {
+         document.getElementById(id).innerHTML = JSON.stringify(codes, null, '\t');
+      }
+   });
+}
+
+function getCompactData(id,database,dims,start,end) {
+   var file = 'http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/'+database+'/'+dims+'?startPeriod='+start+'&endPeriod='+end;
+   readTextFile(file, '', function(text) {
+      var data = JSON.parse(text).CompactData.DataSet.Series;
+      var json = JSON.stringify(data, null, '\t');
+      if (id!='') {
+         document.getElementById(id).innerHTML = json
+      }
+      buildDataSet(json);
+   });
+}
+
+function buildDataSet(json) {
+   var nitems = -1;
+   var datanames = [];
+   var data
+   JSON.parse(json, function(k,v) {
+      if (k=="@INDICATOR") {
+         nitems++;
+         datanames[nitems] = v;
+      }
+      if (k=="Obs") {
+      }
+   });
+   alert(datanames);
+}
+
+
+function loadFunction() {
+
+   getDataFlow('');
+   var database = 'DOT';
+   getDataStructure('DOT','DOT');
+//   getCodeList('DOT','CL_UNIT_MULT');
+
+/*
+   var imin = 20;
+   var ilen = 10;
+
+   for(var i=imin;i<imin+ilen;i++) {
+      getDataStructure(dbids[i],dbids[i]);
+   }
+   for (var i=0; i<ilen; i++) {
+      getCodeList(dbids[imin+i],codenames[i]);
+   }
+   alert("done");
+*/
+//	FM
+
+/*
+   for(var i=0;i<1;i++) {
+      getDataStructure(dbids[i],dbids[i]);
+   }
+   var codes = ['CL_AREA_WHDREO','CL_INDICATOR_WHDREO','CL_FREQ','CL_UNIT_MULT'];
+   for(var i=0;i<codes.length;i++) {
+      id = (codes[i]=='CL_INDICATOR_WHDREO') ? '' : '';
+      getCodeList(id,codes[i]);
+   }
+   var CL_AREA_WHDREO = 'US';
+   var CL_INDICATOR_WHDREO = '';
+   var CL_FREQ = '';
+   var CL_UNIT_MULT = '';
+
+   var dims = eval(codes[0]);
+   for(var i=1;i<codes.length;i++) {
+      dims = dims.concat('.').concat(eval(codes[i]));
+   }
+   getCompactData('codelist',database,dims,2000,2015);
+
+   readTextFile(file, type, function(text) {
+      var dlist = [];
+//      var data = JSON.parse(text, function(k,v) {if (k=="@id") dlist.push(v);});
+      var data = JSON.parse(text);
+      document.body.innerHTML = text;
+   });
+*/
+
+}
+
+function parseJSON(data) {
+   var series = data.structure.dimensions.series[0].values;
+   var dataSeries = data.dataSets[0].series;
+   for (i=0;i<series.length;i++) {
+      eval('var '+series[i].id+' = [];');
+      var observations = dataSeries[i].observations;
+      for (j=0;j<Object.keys(observations).length;j++) {
+         eval(series[i].id+'['+j+'] = '+observations[j][0]);
+      }
+   }
+   document.body.innerHTML = NZD+'...'+RUB;
+}
+
+ //]]>
+
+</script>
+</head>
+<body onload="loadFunction();">
+<PRE id="codelist"></PRE>
+</body>
+</html>
