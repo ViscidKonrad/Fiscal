@@ -91,12 +91,33 @@
 
  }
 
+ function createCORSRequest(method,url)
+ {
+  var xhr = new XMLHttpRequest();
+  if ("withCredentials" in xhr)
+  {
+   xhr.open(method, url, true);
+  }
+  else if (typeof XDomainRequest != "undefined")
+  {
+   xhr = new XDomainRequest();
+   xhr.open(method, url);
+  } else {
+   xhr = null;
+  }
+  return xhr;
+ }
+
  function setPage()
  {
-  var txtFile = new XMLHttpRequest();
-  txtFile.onload = reqListener;
-  txtFile.open("GET", "file:///Users/davidrosnick/Downloads/weoreptc-8.aspx", true);
-  txtFile.send();
+  var txtFile = createCORSRequest("GET", "http://www.imf.org/external/pubs/ft/weo/2014/02/weodata/weoreptc.aspx?sy=1980&ey=2019&ssc=1&sort=country&ds=.&br=1&pr1.x=31&pr1.y=4&c=174&s=NGDP_R%2CNGDP%2CNGAP_NPGDP%2CGGR%2CGGX%2CGGSB%2CGGSB_NPGDP%2CNID_NGDP&grp=0&a=");
+  if (txtFile)
+  {
+   txtFile.setRequestHeader('Access-Control-Allow-Headers','*');
+   txtFile.setRequestHeader('Access-Control-Allow-Origin','http://www.imf.org');
+   txtFile.onload = reqListener;
+   txtFile.send();
+  }
  }
 
  function doNew()
